@@ -92,10 +92,9 @@ fn create_jfa_bind_group(
     input: &TextureView,
     sampler: &Sampler,
 ) -> BindGroup {
-    device.create_bind_group(&BindGroupDescriptor {
-        label: Some(label),
+    device.create_bind_group(Some(label),
         layout,
-        entries: &[
+        &[
             BindGroupEntry {
                 binding: 0,
                 resource: dist_buffer,
@@ -108,8 +107,7 @@ fn create_jfa_bind_group(
                 binding: 2,
                 resource: BindingResource::Sampler(sampler),
             },
-        ],
-    })
+        ])
 }
 
 fn create_outline_src_bind_group(
@@ -120,10 +118,9 @@ fn create_outline_src_bind_group(
     mask: &TextureView,
     sampler: &Sampler,
 ) -> BindGroup {
-    device.create_bind_group(&BindGroupDescriptor {
-        label: Some(label),
+    device.create_bind_group(Some(label),
         layout,
-        entries: &[
+        &[
             BindGroupEntry {
                 binding: 0,
                 resource: BindingResource::TextureView(src),
@@ -136,8 +133,7 @@ fn create_outline_src_bind_group(
                 binding: 2,
                 resource: BindingResource::Sampler(sampler),
             },
-        ],
-    })
+        ])
 }
 
 impl FromWorld for OutlineResources {
@@ -180,14 +176,12 @@ impl FromWorld for OutlineResources {
                 }],
             });
 
-        let dimensions_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("jfa_dimensions_bind_group"),
-            layout: &dimensions_bind_group_layout,
-            entries: &[BindGroupEntry {
+        let dimensions_bind_group = device.create_bind_group(Some("jfa_dimensions_bind_group"),
+            &dimensions_bind_group_layout,
+            &[BindGroupEntry {
                 binding: 0,
                 resource: dimensions_buffer.binding().unwrap(),
-            }],
-        });
+            }]);
 
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("outline_jfa_sampler"),
@@ -223,10 +217,9 @@ impl FromWorld for OutlineResources {
                     },
                 ],
             });
-        let jfa_init_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("outline_jfa_init_bind_group"),
-            layout: &jfa_init_bind_group_layout,
-            entries: &[
+        let jfa_init_bind_group = device.create_bind_group(Some("outline_jfa_init_bind_group"),
+            &jfa_init_bind_group_layout,
+            &[
                 BindGroupEntry {
                     binding: 0,
                     resource: BindingResource::TextureView(&mask_output.default_view),
@@ -235,8 +228,7 @@ impl FromWorld for OutlineResources {
                     binding: 1,
                     resource: BindingResource::Sampler(&sampler),
                 },
-            ],
-        });
+            ]);
 
         let jfa_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("outline_jfa_bind_group_layout"),
@@ -401,7 +393,6 @@ impl FromWorld for OutlineResources {
 }
 
 pub fn recreate_outline_resources(
-    settings: Res<OutlineSettings>,
     mut outline: ResMut<OutlineResources>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
@@ -428,7 +419,7 @@ pub fn recreate_outline_resources(
         depth_or_array_layers: 1,
     };
 
-    let half_resolution = settings.half_resolution;
+    let half_resolution = false; // settings.half_resolution;
     let jfa_size = if half_resolution { half_size } else { size };
 
     let new_dims = jfa::Dimensions::new(size.width, size.height);
@@ -452,10 +443,9 @@ pub fn recreate_outline_resources(
 
     if outline.mask_output.texture.id() != old_mask {
         // Recreate JFA init pass bind group
-        outline.jfa_init_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("outline_jfa_init_bind_group"),
-            layout: &outline.jfa_init_bind_group_layout,
-            entries: &[
+        outline.jfa_init_bind_group = device.create_bind_group(Some("outline_jfa_init_bind_group"),
+            &outline.jfa_init_bind_group_layout,
+            &[
                 BindGroupEntry {
                     binding: 0,
                     resource: BindingResource::TextureView(&outline.mask_output.default_view),
@@ -464,8 +454,7 @@ pub fn recreate_outline_resources(
                     binding: 1,
                     resource: BindingResource::Sampler(&outline.sampler),
                 },
-            ],
-        });
+            ]);
     }
 
     let old_jfa_primary = outline.jfa_primary_output.texture.id();

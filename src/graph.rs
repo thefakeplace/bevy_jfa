@@ -16,10 +16,6 @@ use crate::{jfa::JfaNode, jfa_init::JfaInitNode, mask::MeshMaskNode, outline::Ou
 pub(crate) mod outline {
     pub const NAME: &str = "outline_graph";
 
-    pub mod input {
-        pub const VIEW_ENTITY: &str = "view_entity";
-    }
-
     pub mod node {
         pub const MASK_PASS: &str = "mask_pass";
         pub const JFA_INIT_PASS: &str = "jfa_init_pass";
@@ -32,7 +28,6 @@ pub struct OutlineDriverNode;
 
 impl OutlineDriverNode {
     pub const NAME: &'static str = "outline_driver";
-    pub const INPUT_VIEW: &'static str = "view_entity";
 }
 
 impl Node for OutlineDriverNode {
@@ -42,29 +37,21 @@ impl Node for OutlineDriverNode {
         _render_context: &mut RenderContext,
         _world: &World,
     ) -> Result<(), NodeRunError> {
-        let view_ent = graph.get_input_entity(Self::INPUT_VIEW)?;
+        let view_ent = graph.view_entity();
 
-        graph.run_sub_graph(outline::NAME, vec![view_ent.into()])?;
+        graph.run_sub_graph(outline::NAME, vec![], Some(view_ent))?;
 
         Ok(())
     }
 
     fn input(&self) -> Vec<SlotInfo> {
-        vec![SlotInfo {
-            name: Self::INPUT_VIEW.into(),
-            slot_type: SlotType::Entity,
-        }]
+        vec![]
     }
 }
 
 /// Builds the render graph for applying the JFA outline.
 pub fn outline(render_app: &mut App) -> Result<RenderGraph, RenderGraphError> {
     let mut graph = RenderGraph::default();
-
-    let input_node_id = graph.set_input(vec![SlotInfo {
-        name: outline::input::VIEW_ENTITY.into(),
-        slot_type: SlotType::Entity,
-    }]);
 
     // Graph order:
     // 1. Mask
@@ -84,14 +71,6 @@ pub fn outline(render_app: &mut App) -> Result<RenderGraph, RenderGraphError> {
     graph.add_node(outline::node::JFA_PASS, jfa_node);
     graph.add_node(outline::node::OUTLINE_PASS, outline_node);
 
-    // Input -> Mask
-    graph.add_slot_edge(
-        input_node_id,
-        outline::input::VIEW_ENTITY,
-        outline::node::MASK_PASS,
-        MeshMaskNode::IN_VIEW,
-    );
-
     // Mask -> JFA Init
     graph.add_slot_edge(
         outline::node::MASK_PASS,
@@ -100,28 +79,12 @@ pub fn outline(render_app: &mut App) -> Result<RenderGraph, RenderGraphError> {
         JfaInitNode::IN_MASK,
     );
 
-    // Input -> JFA
-    graph.add_slot_edge(
-        input_node_id,
-        outline::input::VIEW_ENTITY,
-        outline::node::JFA_PASS,
-        JfaNode::IN_VIEW,
-    );
-
     // JFA Init -> JFA
     graph.add_slot_edge(
         outline::node::JFA_INIT_PASS,
         JfaInitNode::OUT_JFA_INIT,
         outline::node::JFA_PASS,
         JfaNode::IN_BASE,
-    );
-
-    // Input -> Outline
-    graph.add_slot_edge(
-        input_node_id,
-        outline::input::VIEW_ENTITY,
-        outline::node::OUTLINE_PASS,
-        OutlineNode::IN_VIEW,
     );
 
     // JFA -> Outline

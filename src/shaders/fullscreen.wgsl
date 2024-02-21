@@ -1,3 +1,5 @@
+#define_import_path outline::fullscreen
+
 struct Vertex {
     pos: vec2<f32>,
     texcoord: vec2<f32>,

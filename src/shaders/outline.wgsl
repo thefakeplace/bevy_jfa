@@ -1,5 +1,5 @@
-#import outline::fullscreen
-#import outline::dimensions
+#import outline::fullscreen::{vertex as fullscreen_vertex, VertexOut}
+#import outline::dimensions::dims
 
 struct Params {
     color: vec4<f32>,
@@ -49,4 +49,9 @@ fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
     } else {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
+}
+
+@vertex
+fn vertex(@builtin(vertex_index) idx: u32) -> VertexOut {
+    return fullscreen_vertex(idx);
 }

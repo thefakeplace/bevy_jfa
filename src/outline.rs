@@ -72,15 +72,13 @@ pub struct OutlinePipelineKey {
 
 impl OutlinePipelineKey {
     pub fn new(format: TextureFormat) -> Option<OutlinePipelineKey> {
-        let info = format.describe();
-
-        if info.sample_type == TextureSampleType::Depth {
+        if format.sample_type(None) == Some(TextureSampleType::Depth) {
             // Can't use this format as a color attachment.
             return None;
         }
 
-        if info
-            .guaranteed_format_features
+        if format
+            .guaranteed_format_features(Default::default())
             .allowed_usages
             .contains(TextureUsages::RENDER_ATTACHMENT)
         {
@@ -220,7 +218,7 @@ impl Node for OutlineNode {
         let mut tracked_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("jfa_outline"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: target.main_texture(),
+                view: target.main_texture_view(),
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Load,

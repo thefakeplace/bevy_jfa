@@ -1,5 +1,5 @@
-#import outline::fullscreen
-#import outline::dimensions
+#import outline::fullscreen::{vertex as fullscreen_vertex, VertexOut}
+#import outline::dimensions::dims
 
 // Jump flood initialization pass.
 @group(1) @binding(0)
@@ -56,4 +56,9 @@ fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
     let offset = dir * (1.0 - samples[1][1]) * vec2<f32>(dx, dy);
 
     return out_position + vec4<f32>(offset, 0.0, 1.0);
+}
+
+@vertex
+fn vertex(@builtin(vertex_index) idx: u32) -> VertexOut {
+    return fullscreen_vertex(idx);
 }

@@ -98,10 +98,9 @@ fn handle_keys(mut settings: ResMut<OutlineSettings>, mut keys: EventReader<Keyb
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(OutlinePlugin)
+        .add_plugins(OutlinePlugin)
         // .insert_resource(Msaa::Off)
-        .add_startup_system(setup)
-        .add_system(rotate_cube)
-        .add_system(handle_keys)
+        .add_systems(Startup, setup)
+        .add_systems(Update, (rotate_cube, handle_keys))
         .run();
 }

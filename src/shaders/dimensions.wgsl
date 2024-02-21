@@ -1,3 +1,5 @@
+#define_import_path outline::dimensions
+
 struct Dimensions {
     // Framebuffer width in pixels.
     width: f32,
