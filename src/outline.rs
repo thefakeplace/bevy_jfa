@@ -191,38 +191,38 @@ impl Node for OutlineNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let view_ent = graph.get_view_entity().unwrap();
-        let (outline, target) = self.query.get_manual(world, view_ent).unwrap();
+        if let Ok((outline, target)) = self.query.get_manual(world, view_ent) {
+            let styles = world.resource::<RenderAssets<OutlineStyle>>();
+            let style = styles.get(&outline.style).unwrap();
 
-        let styles = world.resource::<RenderAssets<OutlineStyle>>();
-        let style = styles.get(&outline.style).unwrap();
+            let res = world.get_resource::<OutlineResources>().unwrap();
 
-        let res = world.get_resource::<OutlineResources>().unwrap();
+            let pipelines = world.get_resource::<PipelineCache>().unwrap();
+            let pipeline = match pipelines.get_render_pipeline(self.pipeline_id) {
+                Some(p) => p,
+                None => return Ok(()),
+            };
 
-        let pipelines = world.get_resource::<PipelineCache>().unwrap();
-        let pipeline = match pipelines.get_render_pipeline(self.pipeline_id) {
-            Some(p) => p,
-            None => return Ok(()),
-        };
+            let mut tracked_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
+                label: Some("jfa_outline"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: target.main_texture_view(),
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                // TODO: support outlines being occluded by world geometry
+                depth_stencil_attachment: None,
+            });
 
-        let mut tracked_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
-            label: Some("jfa_outline"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: target.main_texture_view(),
-                resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Load,
-                    store: true,
-                },
-            })],
-            // TODO: support outlines being occluded by world geometry
-            depth_stencil_attachment: None,
-        });
-
-        tracked_pass.set_render_pipeline(pipeline);
-        tracked_pass.set_bind_group(0, &res.dimensions_bind_group, &[]);
-        tracked_pass.set_bind_group(1, &res.outline_src_bind_group, &[]);
-        tracked_pass.set_bind_group(2, &style.bind_group, &[]);
-        tracked_pass.draw(0..3, 0..1);
+            tracked_pass.set_render_pipeline(pipeline);
+            tracked_pass.set_bind_group(0, &res.dimensions_bind_group, &[]);
+            tracked_pass.set_bind_group(1, &res.outline_src_bind_group, &[]);
+            tracked_pass.set_bind_group(2, &style.bind_group, &[]);
+            tracked_pass.draw(0..3, 0..1);
+        }
 
         Ok(())
     }

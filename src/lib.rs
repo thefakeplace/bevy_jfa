@@ -24,8 +24,8 @@
 use std::{any::TypeId, ops::Range};
 
 use bevy::{
-    app::prelude::*, asset::{Asset, AssetApp, Assets, Handle, UntypedAssetId, UntypedHandle}, core_pipeline::core_3d, ecs::{prelude::*, system::SystemParamItem}, math::Mat4, pbr::{DrawMesh, MeshPipelineKey, MeshTransforms, MeshUniform, SetMeshBindGroup, SetMeshViewBindGroup}, prelude::Camera3d, reflect::{TypePath, TypeUuid}, render::{
-        batching::batch_and_prepare_render_phase, extract_resource::ExtractResource, prelude::*, render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets}, render_graph::RenderGraph, render_phase::{
+    app::prelude::*, asset::{Asset, AssetApp, AssetId, Assets, Handle, UntypedAssetId, UntypedHandle}, core_pipeline::core_3d, ecs::{prelude::*, query::QueryItem, system::{lifetimeless::SRes, SystemParamItem}}, math::Mat4, pbr::{DrawMesh, MaterialBindGroupId, Mesh3d, MeshPipelineKey, MeshTransforms, MeshUniform, RenderMeshInstances, SetMeshBindGroup, SetMeshViewBindGroup}, prelude::Camera3d, reflect::{TypePath, TypeUuid}, render::{
+        batching::{batch_and_prepare_render_phase, GetBatchData}, extract_resource::ExtractResource, prelude::*, render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets}, render_graph::RenderGraph, render_phase::{
             AddRenderCommand, CachedRenderPipelinePhaseItem, DrawFunctionId, DrawFunctions,
             PhaseItem, RenderPhase, SetItemPipeline,
         }, render_resource::*, renderer::{RenderDevice, RenderQueue}, view::{ExtractedView, VisibleEntities}, Extract, Render, RenderApp, RenderSet
@@ -177,7 +177,10 @@ impl Plugin for OutlinePlugin {
             .add_systems(Render, (
                 resources::recreate_outline_resources,
                 queue_mesh_masks,
-            ).in_set(RenderSet::QueueMeshes));
+            ).in_set(RenderSet::QueueMeshes))
+            .add_systems(Render, (
+                batch_and_prepare_render_phase::<MeshMask, MeshMaskPipeline>
+            ).in_set(RenderSet::PrepareResources));
 
         let render_app = match app.get_sub_app_mut(RenderApp) {
             Ok(r) => r,
@@ -192,7 +195,6 @@ impl Plugin for OutlinePlugin {
         draw_3d_graph.add_sub_graph(outline_graph::NAME, outline_graph);
         draw_3d_graph.add_node(OutlineDriverNode::NAME, OutlineDriverNode);
         draw_3d_graph.add_node_edge(core_3d::graph::node::MAIN_OPAQUE_PASS, OutlineDriverNode::NAME);
-        println!("{}", bevy_mod_debugdump::render_graph::render_graph_dot(&root_graph, &Default::default()));
     }
 }
 
@@ -332,7 +334,6 @@ fn extract_mask_camera_phase(
         commands
             .get_or_spawn(entity)
             .insert(RenderPhase::<MeshMask>::default());
-        println!("adding meshmask to {:?}", entity);
     }
 }
 
@@ -373,7 +374,6 @@ fn queue_mesh_masks(
         let view_matrix = view.transform.compute_matrix();
         let inv_view_row_2 = view_matrix.inverse().row(2);
 
-        let mut i=0;
         for visible_entity in visible_entities.entities.iter().copied() {
             let (entity, extracted_outline) = match outline_meshes.get(visible_entity) {
                 Ok(m) => m,
@@ -396,10 +396,33 @@ fn queue_mesh_masks(
                 pipeline,
                 draw_function: draw_outline,
                 distance: inv_view_row_2.dot(extracted_outline.transform.col(2)),
-                batch_range: i..i+1,
+                batch_range: 0..1,
                 dynamic_offset: None,
             });
-            i += 1;
         }
+    }
+}
+
+impl GetBatchData for MeshMaskPipeline {
+    type Param = SRes<RenderMeshInstances>;
+    type Query = Entity;
+    type QueryFilter = With<Mesh3d>;
+    type CompareData = (MaterialBindGroupId, AssetId<Mesh>);
+    type BufferData = MeshUniform;
+
+    fn get_batch_data(
+        mesh_instances: &SystemParamItem<Self::Param>,
+        entity: &QueryItem<Self::Query>,
+    ) -> (Self::BufferData, Option<Self::CompareData>) {
+        let mesh_instance = mesh_instances
+            .get(entity)
+            .expect("Failed to find render mesh instance");
+        (
+            (&mesh_instance.transforms).into(),
+            mesh_instance.automatic_batching.then_some((
+                mesh_instance.material_bind_group_id,
+                mesh_instance.mesh_asset_id,
+            )),
+        )
     }
 }
