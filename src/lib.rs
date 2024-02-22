@@ -24,28 +24,12 @@
 use std::{any::TypeId, ops::Range};
 
 use bevy::{
-    app::prelude::*,
-    asset::{Asset, AssetApp, Assets, Handle, UntypedAssetId, UntypedHandle},
-    core_pipeline::core_3d,
-    ecs::{prelude::*, system::SystemParamItem},
-    pbr::{DrawMesh, MeshPipelineKey, MeshTransforms, MeshUniform, SetMeshBindGroup, SetMeshViewBindGroup},
-    prelude::Camera3d,
-    reflect::{TypePath, TypeUuid},
-    render::{
-        extract_resource::ExtractResource,
-        prelude::*,
-        render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets},
-        render_graph::RenderGraph,
-        render_phase::{
+    app::prelude::*, asset::{Asset, AssetApp, Assets, Handle, UntypedAssetId, UntypedHandle}, core_pipeline::core_3d, ecs::{prelude::*, system::SystemParamItem}, math::Mat4, pbr::{DrawMesh, MeshPipelineKey, MeshTransforms, MeshUniform, SetMeshBindGroup, SetMeshViewBindGroup}, prelude::Camera3d, reflect::{TypePath, TypeUuid}, render::{
+        batching::batch_and_prepare_render_phase, extract_resource::ExtractResource, prelude::*, render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets}, render_graph::RenderGraph, render_phase::{
             AddRenderCommand, CachedRenderPipelinePhaseItem, DrawFunctionId, DrawFunctions,
             PhaseItem, RenderPhase, SetItemPipeline,
-        },
-        render_resource::*,
-        renderer::{RenderDevice, RenderQueue},
-        view::{ExtractedView, VisibleEntities},
-        Extract, RenderApp, RenderSet,
-    },
-    utils::{nonmax::NonMaxU32, FloatOrd, Uuid},
+        }, render_resource::*, renderer::{RenderDevice, RenderQueue}, view::{ExtractedView, VisibleEntities}, Extract, Render, RenderApp, RenderSet
+    }, transform::components::GlobalTransform, utils::{nonmax::NonMaxU32, FloatOrd, Uuid}
 };
 
 use crate::{
@@ -61,6 +45,12 @@ mod jfa_init;
 mod mask;
 mod outline;
 mod resources;
+
+#[derive(Component)]
+pub struct ExtractedOutline {
+    mesh: Handle<Mesh>,
+    transform: Mat4,
+}
 
 const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
 const FULLSCREEN_PRIMITIVE_STATE: PrimitiveState = PrimitiveState {
@@ -142,7 +132,6 @@ impl Plugin for OutlinePlugin {
         app.add_plugins(RenderAssetPlugin::<OutlineStyle>::default())
             .init_asset::<OutlineStyle>()
             .init_resource::<OutlineSettings>();
-        println!("inserted {:?}", TypeId::of::<OutlineSettings>());
 
         let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
 
@@ -162,6 +151,7 @@ impl Plugin for OutlinePlugin {
         shaders.insert(OUTLINE_SHADER_HANDLE, outline_shader);
         shaders.insert(DIMENSIONS_SHADER_HANDLE, dimensions_shader);
     }
+
     fn finish(&self, app: &mut App) {
         let render_app = match app.get_sub_app_mut(RenderApp) {
             Ok(r) => r,
@@ -183,8 +173,16 @@ impl Plugin for OutlinePlugin {
                 extract_outline_settings,
                 extract_camera_outlines,
                 extract_mask_camera_phase,
+                extract_outline_targets))
+            .add_systems(Render, (
                 resources::recreate_outline_resources,
-                queue_mesh_masks));
+                queue_mesh_masks,
+            ).in_set(RenderSet::QueueMeshes));
+
+        let render_app = match app.get_sub_app_mut(RenderApp) {
+            Ok(r) => r,
+            Err(_) => return,
+        };
 
         let outline_graph = graph::outline(render_app).unwrap();
 
@@ -192,8 +190,9 @@ impl Plugin for OutlinePlugin {
         let draw_3d_graph = root_graph.get_sub_graph_mut(core_3d::CORE_3D).unwrap();
 
         draw_3d_graph.add_sub_graph(outline_graph::NAME, outline_graph);
-        let outline_driver = draw_3d_graph.add_node(OutlineDriverNode::NAME, OutlineDriverNode);
-        draw_3d_graph.add_node_edge(core_3d::graph::node::MAIN_OPAQUE_PASS, outline_driver);
+        draw_3d_graph.add_node(OutlineDriverNode::NAME, OutlineDriverNode);
+        draw_3d_graph.add_node_edge(core_3d::graph::node::MAIN_OPAQUE_PASS, OutlineDriverNode::NAME);
+        println!("{}", bevy_mod_debugdump::render_graph::render_graph_dot(&root_graph, &Default::default()));
     }
 }
 
@@ -333,6 +332,22 @@ fn extract_mask_camera_phase(
         commands
             .get_or_spawn(entity)
             .insert(RenderPhase::<MeshMask>::default());
+        println!("adding meshmask to {:?}", entity);
+    }
+}
+
+fn extract_outline_targets(
+    mut commands: Commands,
+    query: Extract<Query<(Entity, &Outline, &Handle<Mesh>, &GlobalTransform)>>,
+) {
+    for (entity, outline, mesh, global_transform) in query.iter() {
+        if outline.enabled {
+            let cmds = &mut commands.get_or_spawn(entity);
+                cmds.insert(ExtractedOutline {
+                    mesh: mesh.clone(),
+                    transform: global_transform.compute_matrix(),
+                });
+        }
     }
 }
 
@@ -342,7 +357,7 @@ fn queue_mesh_masks(
     mut pipelines: ResMut<SpecializedMeshPipelines<MeshMaskPipeline>>,
     mut pipeline_cache: ResMut<PipelineCache>,
     render_meshes: Res<RenderAssets<Mesh>>,
-    outline_meshes: Query<(Entity, &Handle<Mesh>, &MeshTransforms)>,
+    outline_meshes: Query<(Entity, &ExtractedOutline)>,
     mut views: Query<(
         &ExtractedView,
         &mut VisibleEntities,
@@ -358,13 +373,14 @@ fn queue_mesh_masks(
         let view_matrix = view.transform.compute_matrix();
         let inv_view_row_2 = view_matrix.inverse().row(2);
 
+        let mut i=0;
         for visible_entity in visible_entities.entities.iter().copied() {
-            let (entity, mesh_handle, mesh_transform) = match outline_meshes.get(visible_entity) {
+            let (entity, extracted_outline) = match outline_meshes.get(visible_entity) {
                 Ok(m) => m,
                 Err(_) => continue,
             };
 
-            let mesh = match render_meshes.get(mesh_handle) {
+            let mesh = match render_meshes.get(&extracted_outline.mesh) {
                 Some(m) => m,
                 None => continue,
             };
@@ -379,10 +395,11 @@ fn queue_mesh_masks(
                 entity,
                 pipeline,
                 draw_function: draw_outline,
-                distance: inv_view_row_2.dot(mesh_transform.transform.matrix3.col(2).extend(0.)),
-                batch_range: 0..1,
+                distance: inv_view_row_2.dot(extracted_outline.transform.col(2)),
+                batch_range: i..i+1,
                 dynamic_offset: None,
             });
+            i += 1;
         }
     }
 }

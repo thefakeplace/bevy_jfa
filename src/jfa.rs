@@ -94,7 +94,6 @@ impl FromWorld for JfaNode {
 }
 
 impl JfaNode {
-    pub const IN_VIEW: &'static str = "in_view";
     pub const IN_BASE: &'static str = "in_base";
     pub const OUT_JUMP: &'static str = "out_jump";
 }
@@ -102,7 +101,6 @@ impl JfaNode {
 impl Node for JfaNode {
     fn input(&self) -> Vec<SlotInfo> {
         vec![
-            SlotInfo::new(Self::IN_VIEW, SlotType::Entity),
             SlotInfo::new(Self::IN_BASE, SlotType::TextureView),
         ]
     }
@@ -126,10 +124,11 @@ impl Node for JfaNode {
             .set_output(Self::OUT_JUMP, res.jfa_final_output.default_view.clone())
             .unwrap();
 
+        let view_entity = graph.view_entity();
         let styles = world.resource::<RenderAssets<OutlineStyle>>();
         let width = match self
             .query
-            .get_manual(world, graph.get_input_entity(Self::IN_VIEW)?)
+            .get_manual(world, view_entity)
         {
             Ok(outline) => {
                 let dims = res.dimensions_buffer.get();

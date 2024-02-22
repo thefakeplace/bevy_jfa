@@ -147,9 +147,7 @@ pub struct OutlineNode {
 }
 
 impl OutlineNode {
-    pub const IN_VIEW: &'static str = "in_view";
     pub const IN_JFA: &'static str = "in_jfa";
-    pub const OUT_VIEW: &'static str = "out_view";
 
     pub fn new(world: &mut World, target_format: TextureFormat) -> OutlineNode {
         let pipeline_id = world.resource_scope(|world, mut cache: Mut<PipelineCache>| {
@@ -175,18 +173,11 @@ impl Node for OutlineNode {
                 name: Self::IN_JFA.into(),
                 slot_type: SlotType::TextureView,
             },
-            SlotInfo {
-                name: Self::IN_VIEW.into(),
-                slot_type: SlotType::Entity,
-            },
         ]
     }
 
     fn output(&self) -> Vec<SlotInfo> {
-        vec![SlotInfo {
-            name: Self::OUT_VIEW.into(),
-            slot_type: SlotType::Entity,
-        }]
+        vec![]
     }
 
     fn update(&mut self, world: &mut World) {
@@ -199,9 +190,7 @@ impl Node for OutlineNode {
         render_context: &mut RenderContext,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        let view_ent = graph.get_input_entity(Self::IN_VIEW)?;
-        graph.set_output(Self::OUT_VIEW, view_ent)?;
-
+        let view_ent = graph.get_view_entity().unwrap();
         let (outline, target) = self.query.get_manual(world, view_ent).unwrap();
 
         let styles = world.resource::<RenderAssets<OutlineStyle>>();

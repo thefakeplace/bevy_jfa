@@ -2,15 +2,11 @@ use bevy::{
     pbr::{MeshPipeline, MeshPipelineKey, MeshPipelineViewLayoutKey},
     prelude::*,
     render::{
-        mesh::MeshVertexBufferLayout,
-        render_graph::{Node, RenderGraphContext, SlotInfo, SlotType},
-        render_phase::RenderPhase,
-        render_resource::{
+        batching::GetBatchData, mesh::MeshVertexBufferLayout, render_graph::{Node, RenderGraphContext, SlotInfo, SlotType}, render_phase::RenderPhase, render_resource::{
             ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations,
             RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor,
             SpecializedMeshPipeline, SpecializedMeshPipelineError, TextureFormat,
-        },
-        renderer::RenderContext,
+        }, renderer::RenderContext
     },
 };
 
@@ -75,8 +71,6 @@ pub struct MeshMaskNode {
 }
 
 impl MeshMaskNode {
-    pub const IN_VIEW: &'static str = "view";
-
     /// The produced stencil buffer.
     ///
     /// This has format `TextureFormat::Depth24PlusStencil8`. Fragments covered
@@ -93,7 +87,7 @@ impl MeshMaskNode {
 
 impl Node for MeshMaskNode {
     fn input(&self) -> Vec<SlotInfo> {
-        vec![SlotInfo::new(Self::IN_VIEW, SlotType::Entity)]
+        vec![]
     }
 
     fn output(&self) -> Vec<SlotInfo> {
@@ -116,7 +110,7 @@ impl Node for MeshMaskNode {
             .set_output(Self::OUT_MASK, res.mask_multisample.default_view.clone())
             .unwrap();
 
-        let view_entity = graph.get_input_entity(Self::IN_VIEW).unwrap();
+        let view_entity = graph.view_entity();
         let Ok(stencil_phase) = self.query.get_manual(world, view_entity) else {
             return Ok(());
         };

@@ -17,8 +17,12 @@ version = "0.1.0"
 default = ["wgpu-profiler"]
 
 [dependencies]
+bevy_mod_debugdump = "0.9.0"
 bitflags = "2.3.1"
 wgpu-profiler = {version = "0.12.1", optional = true}
+
+[dev-dependencies]
+bevy_mod_debugdump = "0.9.0"
 
 [dependencies.bevy]
 default-features = false

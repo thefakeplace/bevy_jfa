@@ -1,6 +1,6 @@
 use bevy::{
     input::{keyboard::KeyboardInput, ButtonState},
-    prelude::*,
+    prelude::*, render::render_graph::RenderGraph,
 };
 use bevy_jfa::{CameraOutline, Outline, OutlinePlugin, OutlineSettings, OutlineStyle};
 
@@ -14,6 +14,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let sphere = meshes.add(Mesh::from(shape::UVSphere { radius: 1.0, sectors: 8, stacks: 8 }));
     let material = materials.add(StandardMaterial {
         base_color: Color::INDIGO,
         perceptual_roughness: 0.25,
@@ -33,7 +34,7 @@ fn setup(
 
     commands
         .spawn(PbrBundle {
-            mesh: mesh.clone(),
+            mesh: sphere.clone(),
             material: material.clone(),
             transform: Transform::from_xyz(-2.0, 0.0, 0.0),
             ..Default::default()
@@ -78,7 +79,9 @@ fn setup(
     });
 }
 
-fn rotate_cube(time: Res<Time>, mut query: Query<(&mut Transform, &RotationAxis), With<Outline>>) {
+fn rotate_cube(
+    time: Res<Time>,
+    mut query: Query<(&mut Transform, &RotationAxis), With<Outline>>) {
     let delta = time.delta_seconds();
 
     for (mut xform, rot) in query.iter_mut() {
@@ -96,11 +99,13 @@ fn handle_keys(mut settings: ResMut<OutlineSettings>, mut keys: EventReader<Keyb
 }
 
 fn main() {
-    App::new()
+    let mut app = App::new();
+    app
         .add_plugins(DefaultPlugins)
         .add_plugins(OutlinePlugin)
         // .insert_resource(Msaa::Off)
         .add_systems(Startup, setup)
-        .add_systems(Update, (rotate_cube, handle_keys))
-        .run();
+        .add_systems(Update, (rotate_cube, handle_keys));
+
+    app.run();
 }

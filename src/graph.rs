@@ -38,7 +38,6 @@ impl Node for OutlineDriverNode {
         _world: &World,
     ) -> Result<(), NodeRunError> {
         let view_ent = graph.view_entity();
-
         graph.run_sub_graph(outline::NAME, vec![], Some(view_ent))?;
 
         Ok(())
