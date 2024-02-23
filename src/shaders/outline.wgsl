@@ -44,7 +44,7 @@ fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
         let fade = clamp(params.weight - mag * 2.5, 0.1, 0.75);
         return vec4<f32>(params.color.rgb, fade);
     } else {
-        let fade = clamp(params.weight * 4.0 - mag, 0.0, 1.0);
+        let fade = clamp(params.weight * 2.0 - mag, 0.0, 1.0);
         return vec4<f32>(params.color.rgb, fade);
     }
 

@@ -36,6 +36,7 @@ impl SpecializedMeshPipeline for MeshMaskPipeline {
             self.mesh_pipeline.mesh_layouts.model_only.clone(),
         ];
 
+        desc.primitive.cull_mode = None;
         desc.vertex.shader = MASK_SHADER_HANDLE.typed::<Shader>();
 
         desc.fragment = Some(FragmentState {
