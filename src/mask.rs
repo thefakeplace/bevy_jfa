@@ -1,13 +1,9 @@
 use bevy::{
-    pbr::{MeshPipeline, MeshPipelineKey, MeshPipelineViewLayoutKey},
-    prelude::*,
-    render::{
+    ecs::system::lifetimeless::Read, pbr::{MeshPipeline, MeshPipelineKey, MeshPipelineViewLayoutKey}, prelude::*, render::{
         batching::GetBatchData, mesh::MeshVertexBufferLayout, render_graph::{Node, RenderGraphContext, SlotInfo, SlotType}, render_phase::RenderPhase, render_resource::{
-            ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations,
-            RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor,
-            SpecializedMeshPipeline, SpecializedMeshPipelineError, TextureFormat,
-        }, renderer::RenderContext
-    },
+            BlendComponent, BlendFactor, BlendOperation, BlendState, ColorTargetState, ColorWrites, FragmentState, LoadOp, MultisampleState, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SpecializedMeshPipeline, SpecializedMeshPipelineError, TextureFormat
+        }, renderer::RenderContext, view::ViewDepthTexture
+    }
 };
 
 use crate::{resources::OutlineResources, MeshMask, MASK_SHADER_HANDLE};
@@ -47,8 +43,19 @@ impl SpecializedMeshPipeline for MeshMaskPipeline {
             shader_defs: vec![],
             entry_point: "fragment".into(),
             targets: vec![Some(ColorTargetState {
-                format: TextureFormat::R8Unorm,
-                blend: None,
+                format: TextureFormat::Rgba8Unorm,
+                blend: Some(BlendState {
+                    color: BlendComponent {
+                        src_factor: BlendFactor::One,
+                        dst_factor: BlendFactor::One,
+                        operation: BlendOperation::Add,
+                    },
+                    alpha: BlendComponent {
+                        src_factor: BlendFactor::One,
+                        dst_factor: BlendFactor::One,
+                        operation: BlendOperation::Add,
+                    },
+                }),
                 write_mask: ColorWrites::ALL,
             })],
         });

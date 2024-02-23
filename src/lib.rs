@@ -256,6 +256,7 @@ type DrawMeshMask = (
 #[derive(Asset, TypePath, Clone, Debug, PartialEq)]
 pub struct OutlineStyle {
     pub color: Color,
+    pub inner_color: Color,
     pub width: f32,
 }
 
@@ -269,7 +270,7 @@ impl RenderAsset for OutlineStyle {
     );
 
     fn extract_asset(&self) -> Self::ExtractedAsset {
-        OutlineParams::new(self.color, self.width)
+        OutlineParams::new(self.color, self.inner_color, self.width)
     }
 
     fn prepare_asset(

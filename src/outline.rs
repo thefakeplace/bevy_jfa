@@ -25,15 +25,18 @@ use crate::{
 pub struct OutlineParams {
     // Outline color.
     pub(crate) color: Vec4,
+    // Inner outline.
+    pub(crate) inner_color: Vec4,
     // Outline weight in pixels.
     pub(crate) weight: f32,
 }
 
 impl OutlineParams {
-    pub fn new(color: Color, weight: f32) -> OutlineParams {
+    pub fn new(color: Color, inner_color: Color, weight: f32) -> OutlineParams {
         let color: Vec4 = color.as_rgba_f32().into();
+        let inner_color: Vec4 = inner_color.as_rgba_f32().into();
 
-        OutlineParams { color, weight }
+        OutlineParams { color, inner_color, weight }
     }
 }
 
@@ -102,7 +105,7 @@ impl SpecializedRenderPipeline for OutlinePipeline {
             alpha: BlendComponent {
                 src_factor: BlendFactor::One,
                 dst_factor: BlendFactor::Zero,
-                operation: BlendOperation::Add,
+                operation: BlendOperation::Max,
             },
         };
 

@@ -148,7 +148,7 @@ impl FromWorld for OutlineResources {
         let queue = world.get_resource::<RenderQueue>().unwrap().clone();
         let mut textures = world.get_resource_mut::<TextureCache>().unwrap();
 
-        let mask_output_desc = tex_desc("outline_mask_output", size, TextureFormat::R8Unorm);
+        let mask_output_desc = tex_desc("outline_mask_output", size, TextureFormat::Rgba8Unorm);
         let mask_multisample_desc = TextureDescriptor {
             label: Some("outline_mask_multisample"),
             sample_count: 4,
@@ -301,6 +301,7 @@ impl FromWorld for OutlineResources {
 
         let mut outline_params_buffer = UniformBuffer::from(outline::OutlineParams::new(
             Color::hex("b4a2c8").unwrap(),
+            Color::WHITE,
             32.0,
         ));
         outline_params_buffer.write_buffer(&device, &queue);
@@ -430,7 +431,7 @@ pub fn recreate_outline_resources(
     }
 
     let old_mask = outline.mask_multisample.texture.id();
-    let mask_output_desc = tex_desc("outline_mask_output", size, TextureFormat::R8Unorm);
+    let mask_output_desc = tex_desc("outline_mask_output", size, TextureFormat::Rgba8Unorm);
     let mask_multisample_desc = TextureDescriptor {
         label: Some("outline_mask_multisample"),
         sample_count: 4,
