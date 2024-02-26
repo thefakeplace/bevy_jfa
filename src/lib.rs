@@ -194,7 +194,7 @@ impl Plugin for OutlinePlugin {
 
         draw_3d_graph.add_sub_graph(outline_graph::NAME, outline_graph);
         draw_3d_graph.add_node(OutlineDriverNode::NAME, OutlineDriverNode);
-        draw_3d_graph.add_node_edge(core_3d::graph::node::MAIN_OPAQUE_PASS, OutlineDriverNode::NAME);
+        draw_3d_graph.add_node_edge(core_3d::graph::node::MAIN_TRANSPARENT_PASS, OutlineDriverNode::NAME);
     }
 }
 
